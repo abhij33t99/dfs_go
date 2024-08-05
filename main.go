@@ -1,38 +1,35 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"time"
 
 	"github.com/abhij33t99/dfs_go/p2p"
 )
 
-func OnPeer(peer p2p.Peer) error {
-	peer.Close()
-	// fmt.Println("onPeer func : doing some logic outside of TCPTransport")
-	return nil
-}
-
 func main() {
-	tcpOpts := p2p.TCPTransportOpts{
+	tcpTransportOpts := p2p.TCPTransportOpts{
 		ListenAddr:    ":3000",
 		HandshakeFunc: p2p.NOPHandshakeFunc,
 		Decoder:       p2p.DefaultDecoder{},
-		OnPeer:        OnPeer,
+		//TODO: onPeer func
 	}
+	tcpTransport := p2p.NewTCPTransport(tcpTransportOpts)
 
-	tr := p2p.NewTCPTransport(tcpOpts)
-
+	serverOpts := ServerOpts{
+		ListenAddr:        ":3000",
+		StorageRoot:       "3000_network",
+		PathTransformFunc: CASPathTransportFunc,
+		Transport:         tcpTransport,
+	}
+	server := NewServer(serverOpts)
+	
 	go func() {
-		for {
-			msg := <-tr.Consume()
-			fmt.Printf("%+v\n", msg)
-		}
+		time.Sleep(time.Second * 3)
+		server.Stop()
 	}()
 
-	if err := tr.ListenAndAccept(); err != nil {
+	if err := server.Start(); err != nil {
 		log.Fatal(err)
 	}
-
-	select {}
 }
