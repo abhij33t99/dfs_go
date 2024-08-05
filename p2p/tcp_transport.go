@@ -23,7 +23,7 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
 		Conn:     conn,
 		outbound: outbound,
-		Wg: &sync.WaitGroup{},
+		Wg:       &sync.WaitGroup{},
 	}
 }
 

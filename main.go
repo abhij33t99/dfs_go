@@ -18,7 +18,7 @@ func makeServer(listenAddr string, nodes ...string) *Server {
 
 	serverOpts := ServerOpts{
 		// ListenAddr:        ":3000",
-		StorageRoot:       listenAddr + " network",
+		StorageRoot:       listenAddr + "_network",
 		PathTransformFunc: CASPathTransportFunc,
 		Transport:         tcpTransport,
 		BootstrapNodes:    nodes,
