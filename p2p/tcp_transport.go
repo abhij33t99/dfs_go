@@ -5,25 +5,31 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 )
 
 // TCPPeer is the representation of the remote node over a tcp conn.
 type TCPPeer struct {
-	conn net.Conn
+	// underlying conn of the peer which in this case is tcp conn
+	net.Conn
 	// if we dial and retrieve a conn, outbound is true
 	// if we accept and retrieve a conn, outbound is false
 	outbound bool
+
+	Wg *sync.WaitGroup
 }
 
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
-		conn:     conn,
+		Conn:     conn,
 		outbound: outbound,
+		Wg: &sync.WaitGroup{},
 	}
 }
 
-func (p *TCPPeer) Close() error {
-	return p.conn.Close()
+func (p *TCPPeer) Send(b []byte) error {
+	_, err := p.Conn.Write(b)
+	return err
 }
 
 type TCPTransportOpts struct {
@@ -46,8 +52,22 @@ func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 	}
 }
 
+// func (t *TCPTransport) ListenAddress() string {
+// 	return t.ListenAddr
+// }
+
 func (t *TCPTransport) Consume() <-chan Message {
 	return t.msgChan
+}
+
+// Dial implements the transport interface
+func (t *TCPTransport) Dial(addr string) error {
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		return err
+	}
+	go t.handleConn(conn, true)
+	return nil
 }
 
 // Close the listener of the transport interface
@@ -79,15 +99,16 @@ func (t *TCPTransport) startAcceptLoop() {
 		if err != nil {
 			fmt.Printf("TCP accept error: %s\n", err)
 		}
-		go t.handleConn(conn)
+		// fmt.Printf("New incoming connection %+v\n", conn)
+		go t.handleConn(conn, false)
 	}
 }
 
 type Temp struct{}
 
-func (t *TCPTransport) handleConn(conn net.Conn) {
+func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 	var err error
-	peer := NewTCPPeer(conn, true)
+	peer := NewTCPPeer(conn, outbound)
 
 	defer func() {
 		fmt.Printf("Dropping peer connection: %s", err)
@@ -113,7 +134,11 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 			return
 		}
 		msg.From = conn.RemoteAddr().String()
+		peer.Wg.Add(1)
+		fmt.Println("Waiting till stream is done")
 		t.msgChan <- msg
+		peer.Wg.Wait()
+		fmt.Println("stream done, continuing read loop")
 	}
 
 }

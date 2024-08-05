@@ -1,35 +1,46 @@
 package main
 
 import (
+	"bytes"
 	"log"
 	"time"
 
 	"github.com/abhij33t99/dfs_go/p2p"
 )
 
-func main() {
+func makeServer(listenAddr string, nodes ...string) *Server {
 	tcpTransportOpts := p2p.TCPTransportOpts{
-		ListenAddr:    ":3000",
+		ListenAddr:    listenAddr,
 		HandshakeFunc: p2p.NOPHandshakeFunc,
 		Decoder:       p2p.DefaultDecoder{},
-		//TODO: onPeer func
 	}
 	tcpTransport := p2p.NewTCPTransport(tcpTransportOpts)
 
 	serverOpts := ServerOpts{
-		ListenAddr:        ":3000",
-		StorageRoot:       "3000_network",
+		// ListenAddr:        ":3000",
+		StorageRoot:       listenAddr + " network",
 		PathTransformFunc: CASPathTransportFunc,
 		Transport:         tcpTransport,
+		BootstrapNodes:    nodes,
 	}
-	server := NewServer(serverOpts)
-	
-	go func() {
-		time.Sleep(time.Second * 3)
-		server.Stop()
-	}()
 
-	if err := server.Start(); err != nil {
-		log.Fatal(err)
-	}
+	server := NewServer(serverOpts)
+	tcpTransport.OnPeer = server.OnPeer
+	return server
+}
+
+func main() {
+	server1 := makeServer(":3000", "")
+	server2 := makeServer(":4000", ":3000")
+
+	go func() {
+		log.Fatal(server1.Start())
+	}()
+	time.Sleep(time.Second * 1)
+
+	go server2.Start()
+	time.Sleep(time.Second * 1)
+	data := bytes.NewReader([]byte("my big data file"))
+	server2.StoreData("myprivatedata", data)
+	select {}
 }
