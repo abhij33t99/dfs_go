@@ -14,6 +14,7 @@ import (
 )
 
 type ServerOpts struct {
+	EncKey            []byte
 	ListenAddr        string
 	StorageRoot       string
 	PathTransformFunc PathTransformFunc
@@ -138,7 +139,7 @@ func (s *Server) Store(key string, r io.Reader) error {
 	msg := Message{
 		Payload: MessageStoreFile{
 			Key:  key,
-			Size: size,
+			Size: size + 16,
 		},
 	}
 
@@ -150,12 +151,12 @@ func (s *Server) Store(key string, r io.Reader) error {
 	// TODO: use Multiwriter
 	for _, peer := range s.peers {
 		peer.Send([]byte{p2p.IncomingStream})
-		n, err := io.Copy(peer, fileBuffer)
+		n, err := copyEncrypt(s.EncKey, fileBuffer, peer)
 		if err != nil {
 			return err
 		}
 
-		fmt.Println("Received and written bytes to disk", n)
+		fmt.Printf("Received and written [%d] bytes to disk\n", n)
 	}
 	return nil
 }
