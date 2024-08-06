@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"time"
 
@@ -32,15 +33,32 @@ func makeServer(listenAddr string, nodes ...string) *Server {
 func main() {
 	server1 := makeServer(":3000", "")
 	server2 := makeServer(":4000", ":3000")
+	// server2 := makeServer(":4000", "")
 
 	go func() {
 		log.Fatal(server1.Start())
 	}()
-	time.Sleep(time.Second * 1)
+	time.Sleep(time.Second * 2)
 
 	go server2.Start()
-	time.Sleep(time.Second * 1)
-	data := bytes.NewReader([]byte("my big data file"))
-	server2.StoreData("myprivatedata", data)
+	time.Sleep(time.Second * 2)
+
+	for i := 0; i < 10; i++ {
+		data := bytes.NewReader([]byte("my big data file here!"))
+		server2.Store(fmt.Sprintf("myprivatedata_%d", i), data)
+		time.Sleep(time.Millisecond * 5)
+	}
+
+	// r, err := server2.Get("my private data")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// b, err := io.ReadAll(r)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// fmt.Println(string(b))
 	select {}
 }
