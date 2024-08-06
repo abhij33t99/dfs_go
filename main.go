@@ -58,7 +58,7 @@ func main() {
 		server3.Store(key, data)
 		// time.Sleep(time.Millisecond * 5)
 
-		if err := server3.store.Delete(key); err != nil {
+		if err := server3.store.Delete(server3.ID, key); err != nil {
 			log.Fatal(err)
 		}
 
