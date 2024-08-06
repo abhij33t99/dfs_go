@@ -3,9 +3,22 @@ package main
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/md5"
 	"crypto/rand"
+	"encoding/hex"
 	"io"
 )
+
+func generateId() string {
+	buff := make([]byte, 32)
+	io.ReadFull(rand.Reader, buff)
+	return hex.EncodeToString(buff)
+}
+
+func hashKey(key string) string {
+	hash := md5.Sum([]byte(key))
+	return hex.EncodeToString(hash[:])
+}
 
 func newEncryptionKey() []byte {
 	keyBuff := make([]byte, 32)
@@ -25,32 +38,9 @@ func copyDecrypt(key []byte, src io.Reader, dest io.Writer) (int, error) {
 		return 0, err
 	}
 
-	var (
-		buff   = make([]byte, 32*1024)
-		stream = cipher.NewCTR(block, iv)
-		nw     = block.BlockSize()
-	)
+	stream := cipher.NewCTR(block, iv)
 
-	for {
-		n, err := src.Read(buff)
-		if n > 0 {
-			stream.XORKeyStream(buff, buff[:n])
-			nn, err := dest.Write(buff[:n])
-			if err != nil {
-				return 0, err
-			}
-			nw += nn
-		}
-
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	return nw, nil
+	return copyStream(stream, block.BlockSize(), src, dest)
 }
 
 func copyEncrypt(key []byte, src io.Reader, dest io.Writer) (int, error) {
@@ -69,10 +59,15 @@ func copyEncrypt(key []byte, src io.Reader, dest io.Writer) (int, error) {
 		return 0, err
 	}
 
+	stream := cipher.NewCTR(block, iv)
+
+	return copyStream(stream, block.BlockSize(), src, dest)
+}
+
+func copyStream(stream cipher.Stream, blockSize int, src io.Reader, dest io.Writer) (int, error) {
 	var (
-		buff   = make([]byte, 32*1024)
-		stream = cipher.NewCTR(block, iv)
-		nw     = block.BlockSize()
+		buff = make([]byte, 32*1024)
+		nw   = blockSize
 	)
 
 	for {
@@ -95,5 +90,4 @@ func copyEncrypt(key []byte, src io.Reader, dest io.Writer) (int, error) {
 	}
 
 	return nw, nil
-
 }

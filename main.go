@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"fmt"
+	"io"
 	"log"
 	"time"
 
@@ -33,31 +35,43 @@ func makeServer(listenAddr string, nodes ...string) *Server {
 func main() {
 	server1 := makeServer(":3000", "")
 	server2 := makeServer(":4000", ":3000")
-	// server2 := makeServer(":4000", "")
+	server3 := makeServer(":5000", ":3000", ":4000")
 
 	go func() {
 		log.Fatal(server1.Start())
+
 	}()
 	time.Sleep(time.Second * 2)
 
-	go server2.Start()
+	go func() {
+		log.Fatal(server2.Start())
+
+	}()
 	time.Sleep(time.Second * 2)
 
-	// for i := 0; i < 10; i++ {
-	data := bytes.NewReader([]byte("my big data file here!"))
-	server2.Store("coolPicture.jpg", data)
-	time.Sleep(time.Millisecond * 5)
-	// }
+	go server3.Start()
+	time.Sleep(time.Second * 2)
 
-	// r, err := server2.Get("coolPicture.jpg")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	for i := 0; i < 20; i++ {
+		key := fmt.Sprintf("coolpic_%d.gif", i)
+		data := bytes.NewReader([]byte("my big data file here!"))
+		server3.Store(key, data)
+		// time.Sleep(time.Millisecond * 5)
 
-	// b, err := io.ReadAll(r)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+		if err := server3.store.Delete(key); err != nil {
+			log.Fatal(err)
+		}
 
-	// fmt.Println(string(b))
+		r, err := server3.Get(key)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		b, err := io.ReadAll(r)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println(string(b))
+	}
 }
